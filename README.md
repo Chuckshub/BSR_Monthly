@@ -79,8 +79,18 @@ The application comes preloaded with a comprehensive chart of accounts including
 
 ## 🎨 UI Features
 
-- **Tabbed Interface**: Organized by account categories for easy navigation
-- **Inline Editing**: Click-to-edit balance fields with save/cancel actions
+- **Dual-Tab Interface**: 
+  - **Monthly Reconciliation**: Balance entry organized by account categories
+  - **Chart of Accounts**: Complete account management interface
+- **Account Management**:
+  - Search and filter accounts by category or name
+  - Add/Edit modal with form validation
+  - Archive accounts instead of deleting
+  - Parent account selection for sub-accounts
+- **Balance Entry**:
+  - Inline editing with click-to-edit balance fields
+  - Save/cancel actions for each entry
+  - Notes field for reconciliation explanations
 - **Variance Indicators**: 
   - 🟢 Green: No change or minimal variance
   - 🔵 Blue: Moderate variance (< 10%)

@@ -13,7 +13,9 @@ import {
   Spinner,
   Chip,
 } from '@heroui/react';
-import { defaultAccounts } from '@/data/defaultAccounts';
+import { AccountsService } from '@/services/accountsService';
+import { BalancesService } from '@/services/balancesService';
+import { AccountsManager } from '@/components/accounts/AccountsManager';
 import { Account, MonthlyReconciliation } from '@/types';
 import { BalanceEntryForm } from './BalanceEntryForm';
 import { ReconciliationSummary } from './ReconciliationSummary';
@@ -47,6 +49,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('current-assets');
+  const [mainTab, setMainTab] = useState('reconciliation');
 
   useEffect(() => {
     initializeData();
@@ -62,20 +65,13 @@ export function Dashboard() {
     try {
       setLoading(true);
       
-      // Load accounts from localStorage or use defaults
-      const storedAccounts = localStorage.getItem('bsr_accounts');
-      if (storedAccounts) {
-        setAccounts(JSON.parse(storedAccounts));
-      } else {
-        // Initialize with default accounts
-        const accounts: Account[] = defaultAccounts.map((account, index) => ({
-          ...account,
-          id: `account_${index + 1}`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }));
-        setAccounts(accounts);
-        localStorage.setItem('bsr_accounts', JSON.stringify(accounts));
+      // Initialize default accounts if needed
+      await AccountsService.initializeDefaultAccounts('demo-user');
+      
+      // Load chart of accounts
+      const chart = await AccountsService.getChartOfAccounts('demo-user');
+      if (chart) {
+        setAccounts(chart.accounts.filter(acc => acc.isActive));
       }
     } catch (error) {
       console.error('Error initializing data:', error);
@@ -86,131 +82,42 @@ export function Dashboard() {
 
   const loadReconciliation = async () => {
     try {
-      const reconciliationKey = `bsr_reconciliation_${selectedYear}_${selectedMonth}`;
-      const storedReconciliation = localStorage.getItem(reconciliationKey);
+      let reconciliation = await BalancesService.getMonthlyReconciliation(
+        'demo-user',
+        parseInt(selectedYear),
+        selectedMonth
+      );
       
-      if (storedReconciliation) {
-        const reconciliation = JSON.parse(storedReconciliation);
-        // Convert date strings back to Date objects
-        reconciliation.createdAt = new Date(reconciliation.createdAt);
-        reconciliation.updatedAt = new Date(reconciliation.updatedAt);
-        if (reconciliation.finalizedAt) {
-          reconciliation.finalizedAt = new Date(reconciliation.finalizedAt);
-        }
-        reconciliation.balances.forEach((balance: Record<string, unknown>) => {
-          balance.createdAt = new Date(balance.createdAt as string);
-          balance.updatedAt = new Date(balance.updatedAt as string);
-        });
-        setReconciliation(reconciliation);
-      } else {
+      if (!reconciliation) {
         // Create new reconciliation
-        const newReconciliation = createNewReconciliation(
+        reconciliation = await BalancesService.createNewReconciliation(
+          'demo-user',
           parseInt(selectedYear),
           selectedMonth,
           accounts.map(acc => acc.id)
         );
-        setReconciliation(newReconciliation);
-        localStorage.setItem(reconciliationKey, JSON.stringify(newReconciliation));
       }
+      
+      setReconciliation(reconciliation);
     } catch (error) {
       console.error('Error loading reconciliation:', error);
     }
   };
 
-  const createNewReconciliation = (
-    year: number,
-    month: number,
-    accountIds: string[]
-  ): MonthlyReconciliation => {
-    const previousReconciliationKey = getPreviousMonthKey(year, month);
-    const previousReconciliation = localStorage.getItem(previousReconciliationKey);
-    let previousBalances: Record<string, unknown>[] = [];
-    
-    if (previousReconciliation) {
-      const prevData = JSON.parse(previousReconciliation);
-      previousBalances = prevData.balances || [];
-    }
-    
-    const balances = accountIds.map(accountId => {
-      const previousBalance = previousBalances.find((b: Record<string, unknown>) => b.accountId === accountId);
-      
-      return {
-        id: `balance_${accountId}_${Date.now()}`,
-        accountId,
-        userId: 'demo-user',
-        year,
-        month,
-        balance: 0,
-        previousBalance: (previousBalance?.balance as number) || 0,
-        variance: 0,
-        variancePercent: 0,
-        isLocked: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-    });
-    
-    return {
-      id: `demo-user_${year}_${month}`,
-      userId: 'demo-user',
-      year,
-      month,
-      status: 'draft',
-      balances,
-      totalAssets: 0,
-      totalLiabilities: 0,
-      totalEquity: 0,
-      isFinalized: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  };
-
-  const getPreviousMonthKey = (year: number, month: number): string => {
-    let prevYear = year;
-    let prevMonth = month - 1;
-    
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = year - 1;
-    }
-    
-    return `bsr_reconciliation_${prevYear}_${prevMonth}`;
-  };
-
   const handleBalanceUpdate = async (accountId: string, balance: number, notes?: string) => {
-    if (!reconciliation) return;
-    
     try {
       setSaving(true);
+      await BalancesService.updateAccountBalance(
+        'demo-user',
+        parseInt(selectedYear),
+        selectedMonth,
+        accountId,
+        balance,
+        notes
+      );
       
-      const updatedReconciliation = { ...reconciliation };
-      const balanceIndex = updatedReconciliation.balances.findIndex(b => b.accountId === accountId);
-      
-      if (balanceIndex !== -1) {
-        updatedReconciliation.balances[balanceIndex] = {
-          ...updatedReconciliation.balances[balanceIndex],
-          balance,
-          notes,
-          updatedAt: new Date(),
-        };
-      }
-      
-      // Calculate variances
-      updatedReconciliation.balances.forEach(bal => {
-        if (bal.accountId === accountId) {
-          bal.variance = bal.balance - (bal.previousBalance || 0);
-          bal.variancePercent = (bal.previousBalance || 0) !== 0 
-            ? (bal.variance / Math.abs(bal.previousBalance || 0)) * 100 
-            : 0;
-        }
-      });
-      
-      setReconciliation(updatedReconciliation);
-      
-      // Save to localStorage
-      const reconciliationKey = `bsr_reconciliation_${selectedYear}_${selectedMonth}`;
-      localStorage.setItem(reconciliationKey, JSON.stringify(updatedReconciliation));
+      // Reload reconciliation to get updated data
+      await loadReconciliation();
     } catch (error) {
       console.error('Error updating balance:', error);
     } finally {
@@ -219,27 +126,14 @@ export function Dashboard() {
   };
 
   const handleFinalize = async () => {
-    if (!reconciliation) return;
-    
     try {
       setSaving(true);
-      
-      const finalizedReconciliation = {
-        ...reconciliation,
-        isFinalized: true,
-        finalizedAt: new Date(),
-        status: 'finalized' as const,
-        balances: reconciliation.balances.map(balance => ({
-          ...balance,
-          isLocked: true,
-        })),
-      };
-      
-      setReconciliation(finalizedReconciliation);
-      
-      // Save to localStorage
-      const reconciliationKey = `bsr_reconciliation_${selectedYear}_${selectedMonth}`;
-      localStorage.setItem(reconciliationKey, JSON.stringify(finalizedReconciliation));
+      await BalancesService.finalizeReconciliation(
+        'demo-user',
+        parseInt(selectedYear),
+        selectedMonth
+      );
+      await loadReconciliation();
     } catch (error) {
       console.error('Error finalizing reconciliation:', error);
     } finally {
@@ -360,78 +254,99 @@ export function Dashboard() {
         <ReconciliationSummary reconciliation={reconciliation} accounts={accounts} />
       )}
 
-      {/* Balance Entry Tabs */}
-      <Card>
-        <CardHeader>
-          <h2 className="text-xl font-semibold">Account Balances</h2>
-        </CardHeader>
-        <CardBody>
-          <Tabs
-            selectedKey={activeTab}
-            onSelectionChange={(key) => setActiveTab(key as string)}
-            variant="underlined"
-            classNames={{
-              tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-              cursor: "w-full bg-primary",
-              tab: "max-w-fit px-0 h-12",
-            }}
-          >
-            <Tab key="current-assets" title="Current Assets">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Current Assets')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-            
-            <Tab key="fixed-assets" title="Fixed Assets">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Fixed Assets')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-            
-            <Tab key="other-assets" title="Other Assets">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Other Assets')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-            
-            <Tab key="current-liabilities" title="Current Liabilities">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Current Liabilities')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-            
-            <Tab key="long-term-liabilities" title="Long Term Liabilities">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Long Term Liabilities')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-            
-            <Tab key="equity" title="Equity">
-              <BalanceEntryForm
-                accounts={getAccountsByCategory('Equity')}
-                reconciliation={reconciliation}
-                onBalanceUpdate={handleBalanceUpdate}
-                isLocked={reconciliation?.isFinalized || false}
-              />
-            </Tab>
-          </Tabs>
-        </CardBody>
-      </Card>
+      {/* Main Content Tabs */}
+      <Tabs
+        selectedKey={mainTab}
+        onSelectionChange={(key) => setMainTab(key as string)}
+        variant="underlined"
+        className="w-full"
+        classNames={{
+          tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+          cursor: "w-full bg-primary",
+          tab: "max-w-fit px-0 h-12",
+        }}
+      >
+        <Tab key="reconciliation" title="Monthly Reconciliation">
+          {/* Balance Entry Tabs */}
+          <Card className="mt-4">
+            <CardHeader>
+              <h2 className="text-xl font-semibold">Account Balances</h2>
+            </CardHeader>
+            <CardBody>
+              <Tabs
+                selectedKey={activeTab}
+                onSelectionChange={(key) => setActiveTab(key as string)}
+                variant="underlined"
+                classNames={{
+                  tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+                  cursor: "w-full bg-primary",
+                  tab: "max-w-fit px-0 h-12",
+                }}
+              >
+                <Tab key="current-assets" title="Current Assets">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Current Assets')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+                
+                <Tab key="fixed-assets" title="Fixed Assets">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Fixed Assets')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+                
+                <Tab key="other-assets" title="Other Assets">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Other Assets')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+                
+                <Tab key="current-liabilities" title="Current Liabilities">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Current Liabilities')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+                
+                <Tab key="long-term-liabilities" title="Long Term Liabilities">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Long Term Liabilities')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+                
+                <Tab key="equity" title="Equity">
+                  <BalanceEntryForm
+                    accounts={getAccountsByCategory('Equity')}
+                    reconciliation={reconciliation}
+                    onBalanceUpdate={handleBalanceUpdate}
+                    isLocked={reconciliation?.isFinalized || false}
+                  />
+                </Tab>
+              </Tabs>
+            </CardBody>
+          </Card>
+        </Tab>
+        
+        <Tab key="accounts" title="Chart of Accounts">
+          <div className="mt-4">
+            <AccountsManager />
+          </div>
+        </Tab>
+      </Tabs>
     </div>
   );
 }
