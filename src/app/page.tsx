@@ -16,10 +16,10 @@ export default function Home() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-text-primary dark:text-text-primary">
                 BalanceSheet Reconciler - Demo
               </h1>
-              <p className="text-sm text-gray-600">Monthly financial reconciliation dashboard</p>
+              <p className="text-sm text-text-secondary dark:text-text-secondary">Monthly financial reconciliation dashboard</p>
             </div>
             <Button
               color="primary"
