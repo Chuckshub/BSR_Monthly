@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardBody,
@@ -29,20 +29,7 @@ import { Plus, Edit3, Archive } from 'lucide-react';
 import { Account, AccountType, AccountCategory } from '@/types';
 import { AccountsService } from '@/services/accountsService';
 
-const ACCOUNT_TYPES: AccountType[] = [
-  'Bank',
-  'Accounts Receivable',
-  'Other Current Asset',
-  'Fixed Assets',
-  'Other Assets',
-  'Accounts Payable',
-  'Credit Card',
-  'Other Current Liability',
-  'Long Term Liabilities',
-  'Equity',
-  'Retained Earnings',
-  'Net Income',
-];
+
 
 const ACCOUNT_CATEGORIES: AccountCategory[] = [
   'Current Assets',
@@ -65,7 +52,7 @@ interface AccountFormData {
 export function AccountsManager() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [showInactive, setShowInactive] = useState(false);
@@ -83,10 +70,6 @@ export function AccountsManager() {
   useEffect(() => {
     loadAccounts();
   }, []);
-
-  useEffect(() => {
-    filterAccounts();
-  }, [accounts, showInactive, selectedCategory, searchTerm]);
 
   const loadAccounts = async () => {
     try {
@@ -106,7 +89,7 @@ export function AccountsManager() {
     }
   };
 
-  const filterAccounts = () => {
+  const filterAccounts = useCallback(() => {
     let filtered = accounts;
 
     // Filter by active status
@@ -128,7 +111,11 @@ export function AccountsManager() {
     }
 
     setFilteredAccounts(filtered);
-  };
+  }, [accounts, showInactive, selectedCategory, searchTerm]);
+
+  useEffect(() => {
+    filterAccounts();
+  }, [filterAccounts]);
 
   const handleAddAccount = () => {
     setEditingAccount(null);

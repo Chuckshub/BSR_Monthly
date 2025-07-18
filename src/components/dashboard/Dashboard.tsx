@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardBody,
@@ -55,12 +55,6 @@ export function Dashboard() {
     initializeData();
   }, []);
 
-  useEffect(() => {
-    if (accounts.length > 0) {
-      loadReconciliation();
-    }
-  }, [selectedYear, selectedMonth, accounts]);
-
   const initializeData = async () => {
     try {
       setLoading(true);
@@ -80,7 +74,7 @@ export function Dashboard() {
     }
   };
 
-  const loadReconciliation = async () => {
+  const loadReconciliation = useCallback(async () => {
     try {
       let reconciliation = await BalancesService.getMonthlyReconciliation(
         'demo-user',
@@ -102,7 +96,13 @@ export function Dashboard() {
     } catch (error) {
       console.error('Error loading reconciliation:', error);
     }
-  };
+  }, [selectedYear, selectedMonth, accounts]);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      loadReconciliation();
+    }
+  }, [accounts, loadReconciliation]);
 
   const handleBalanceUpdate = async (accountId: string, balance: number, notes?: string) => {
     try {
