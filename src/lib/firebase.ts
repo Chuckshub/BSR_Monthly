@@ -3,11 +3,13 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Check if we're in a build environment without Firebase config
-const isConfigured = process.env.NEXT_PUBLIC_FIREBASE_API_KEY && 
+const isConfigured = typeof window !== 'undefined' && 
+                    process.env.NEXT_PUBLIC_FIREBASE_API_KEY && 
                     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-                    process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'your_api_key_here';
+                    process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'your_api_key_here' &&
+                    process.env.NODE_ENV !== 'test';
 
-// Only initialize Firebase if we have valid configuration
+// Only initialize Firebase if we have valid configuration and we're in the browser
 let app: ReturnType<typeof initializeApp> | null = null;
 let db: ReturnType<typeof getFirestore> | null = null;
 let auth: ReturnType<typeof getAuth> | null = null;
