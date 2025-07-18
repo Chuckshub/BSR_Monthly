@@ -168,8 +168,8 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary dark:text-text-primary">Balance Sheet Reconciliation</h1>
-          <p className="text-text-secondary dark:text-text-secondary mt-1">Monthly financial reconciliation dashboard</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Balance Sheet Reconciliation</h1>
+          <p className="text-gray-700 dark:text-gray-300 mt-1">Monthly financial reconciliation dashboard</p>
         </div>
         
         <div className="flex gap-4 items-center">
@@ -208,7 +208,7 @@ export function Dashboard() {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div>
-                  <p className="text-sm text-text-muted dark:text-text-muted">Status</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
                   <Chip color={getStatusColor(reconciliation.status)} variant="flat">
                     {reconciliation.status.replace('_', ' ').toUpperCase()}
                   </Chip>
@@ -216,8 +216,8 @@ export function Dashboard() {
                 
                 {reconciliation.finalizedAt && (
                   <div>
-                    <p className="text-sm text-text-muted dark:text-text-muted">Finalized</p>
-                    <p className="font-medium text-text-primary dark:text-text-primary">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Finalized</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {format(reconciliation.finalizedAt, 'MMM dd, yyyy')}
                     </p>
                   </div>

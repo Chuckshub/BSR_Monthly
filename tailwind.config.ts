@@ -13,9 +13,6 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        'text-primary': "var(--text-primary)",
-        'text-secondary': "var(--text-secondary)",
-        'text-muted': "var(--text-muted)",
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
