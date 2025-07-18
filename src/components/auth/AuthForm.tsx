@@ -9,11 +9,12 @@ import {
   Tabs,
   Tab,
 } from '@heroui/react';
-import { useAuth } from '@/contexts/AuthContext';
+
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export function AuthForm() {
-  const { signIn, signUp } = useAuth();
   const [activeTab, setActiveTab] = useState('login');
   const [isVisible, setIsVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,8 +37,14 @@ export function AuthForm() {
     setError('');
     setLoading(true);
     
+    if (!auth) {
+      setError('Authentication not available. Please check your configuration.');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      await signIn(loginForm.email, loginForm.password);
+      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign in';
       setError(errorMessage);
@@ -62,8 +69,17 @@ export function AuthForm() {
     
     setLoading(true);
     
+    if (!auth) {
+      setError('Authentication not available. Please check your configuration.');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      await signUp(signupForm.email, signupForm.password, signupForm.name);
+      const userCredential = await createUserWithEmailAndPassword(auth, signupForm.email, signupForm.password);
+      await updateProfile(userCredential.user, {
+        displayName: signupForm.name
+      });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create account';
       setError(errorMessage);

@@ -11,6 +11,11 @@ import { defaultAccounts } from '@/data/defaultAccounts';
 
 export class AccountsService {
   static async initializeDefaultAccounts(userId: string): Promise<void> {
+    if (!db) {
+      console.warn('Firebase not initialized, using default accounts');
+      return;
+    }
+    
     const chartRef = doc(db, 'charts', userId);
     const chartDoc = await getDoc(chartRef);
     
@@ -41,6 +46,22 @@ export class AccountsService {
   }
 
   static async getChartOfAccounts(userId: string): Promise<ChartOfAccounts | null> {
+    if (!db) {
+      // Return default accounts when Firebase is not available
+      const accounts: Account[] = defaultAccounts.map((account, index) => ({
+        ...account,
+        id: `account_${index + 1}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+      
+      return {
+        userId,
+        accounts,
+        lastUpdated: new Date(),
+      };
+    }
+    
     const chartRef = doc(db, 'charts', userId);
     const chartDoc = await getDoc(chartRef);
     
@@ -61,6 +82,11 @@ export class AccountsService {
   }
 
   static async addAccount(userId: string, account: Omit<Account, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    if (!db) {
+      console.warn('Firebase not initialized, cannot add account');
+      return 'mock-id';
+    }
+    
     const chartRef = doc(db, 'charts', userId);
     const chartDoc = await getDoc(chartRef);
     
@@ -93,6 +119,11 @@ export class AccountsService {
   }
 
   static async updateAccount(userId: string, accountId: string, updates: Partial<Account>): Promise<void> {
+    if (!db) {
+      console.warn('Firebase not initialized, cannot update account');
+      return;
+    }
+    
     const chartRef = doc(db, 'charts', userId);
     const chartDoc = await getDoc(chartRef);
     

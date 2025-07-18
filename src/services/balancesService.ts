@@ -14,6 +14,11 @@ import { AccountBalance, MonthlyReconciliation } from '@/types';
 
 export class BalancesService {
   static async getMonthlyReconciliation(userId: string, year: number, month: number): Promise<MonthlyReconciliation | null> {
+    if (!db) {
+      console.warn('Firebase not initialized, returning null reconciliation');
+      return null;
+    }
+    
     const reconciliationRef = doc(db, 'reconciliations', `${userId}_${year}_${month}`);
     const reconciliationDoc = await getDoc(reconciliationRef);
     
@@ -48,6 +53,11 @@ export class BalancesService {
   }
 
   static async saveMonthlyReconciliation(reconciliation: MonthlyReconciliation): Promise<void> {
+    if (!db) {
+      console.warn('Firebase not initialized, cannot save reconciliation');
+      return;
+    }
+    
     const reconciliationRef = doc(db, 'reconciliations', `${reconciliation.userId}_${reconciliation.year}_${reconciliation.month}`);
     
     const dataToSave = {
@@ -73,6 +83,11 @@ export class BalancesService {
     balance: number,
     notes?: string
   ): Promise<void> {
+    if (!db) {
+      console.warn('Firebase not initialized, cannot update balance');
+      return;
+    }
+    
     const reconciliation = await this.getMonthlyReconciliation(userId, year, month);
     
     if (reconciliation) {
@@ -205,6 +220,11 @@ export class BalancesService {
   }
 
   static async getReconciliationHistory(userId: string, limit: number = 12): Promise<MonthlyReconciliation[]> {
+    if (!db) {
+      console.warn('Firebase not initialized, returning empty history');
+      return [];
+    }
+    
     const reconciliationsRef = collection(db, 'reconciliations');
     const q = query(
       reconciliationsRef,
